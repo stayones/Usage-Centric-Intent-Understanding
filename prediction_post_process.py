@@ -13,7 +13,7 @@ import openai
 openai.api_key = "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"  # from Wendy
 from scipy.stats import entropy
 from sklearn import preprocessing
-from gpt_utils import wrap_prompt_chat, wrap_prompt_completion
+# from gpt_utils import wrap_prompt_chat, wrap_prompt_completion
 
 def get_cate_property(cecc_count):
     cecc_count = pd.DataFrame.from_dict(cecc_count, orient="index")
@@ -35,7 +35,7 @@ def mrr_calculate(prediction_rank, gold_ceccs):
     for g_cecc in gold_ceccs:
         if g_cecc in prediction_rank:
             # curr_g_rank = prediction_rank[g_cecc]
-            curr_g_rank = prediction_rank.index(g_cecc) + 1
+            curr_g_rank = prediction_rank.get(g_cecc)
             cecc_mean_rr += 1.0/curr_g_rank
             cecc_max_reciprocal_rank = max(cecc_max_reciprocal_rank, 1.0/curr_g_rank)
             v2c_hit_flag = True
@@ -499,8 +499,8 @@ if __name__ == '__main__':
         subsititute_ppt(args.prediction, args.ceccs)
     elif args.task == "cross_cate":
         round_trip_eval(args.prediction)
-    elif args.task == "chatgpt":
-        chat_gpt_end_to_end(args.prediction)
+    # elif args.task == "chatgpt":
+    #     chat_gpt_end_to_end(args.prediction)
     elif args.task == "re_eval":
         cate_level_eval(args.prediction)
 
