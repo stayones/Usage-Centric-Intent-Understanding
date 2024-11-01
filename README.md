@@ -1,4 +1,4 @@
-# Usgae-Centric-Intent-Understanding
+# Usage-Centric-Intent-Understanding
 
 This is the repository for the **Product Recovery Benchmark** proposed in the paper _"A Usage-centric Take on Intent Understanding in E-Commerce"_ accepted by EMNLP 2024.
 
