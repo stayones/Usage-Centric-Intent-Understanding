@@ -10,7 +10,6 @@ from matplotlib import colors
 import numpy as np
 import pandas as pd
 import openai
-openai.api_key = "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"  # from Wendy
 from scipy.stats import entropy
 from sklearn import preprocessing
 # from gpt_utils import wrap_prompt_chat, wrap_prompt_completion
@@ -48,7 +47,6 @@ def sample_change_ppt(prediction_rank, cate_info):
     new_prediction_rank = {}
     unchange_count = 0
     raw_cate_index = {}
-    # print(f"The number of original ranking is {len(prediction_rank)}")
     for i, (pce, r) in enumerate(prediction_rank.items()):
         if pce in cate_info.index:
             pce_bare = cate_info.loc[pce]['bare_cate']
@@ -59,40 +57,34 @@ def sample_change_ppt(prediction_rank, cate_info):
                 now_index = 0
 
             raw_cate_index.update({pce_bare: now_index})
-            # print(f"Original length is {len(all_ppt_cates)}")
-            # print(f"The rank of origianl prediction is {list(all_ppt_cates.index).index(pce)}")
-            # new_ppt_cate = random.choices(list(all_ppt_cates.index), weights=all_ppt_cates['ppt_p'].to_numpy())[0]
             new_ppt_cate = list(all_ppt_cates.index)[now_index]
             if new_ppt_cate == pce:
                 unchange_count += 1
-            while new_ppt_cate in used_ppt_cate:
-                print(now_index)
-                print(raw_cate_index)
-                print(pce_bare)
-                print(list(all_ppt_cates.index)[now_index])
-                print(list(all_ppt_cates.index)[now_index-1])
-                exit("Not suppposed to be used")
-                # all_ppt_cates = all_ppt_cates.drop(new_ppt_cate, axis=0)
-                # all_ppt_cates['ppt_p'] /= sum(all_ppt_cates['ppt_p'])
-                # print(f"New length is {len(all_ppt_cates)}")
-                # print(f"The length of cate info is {cate_info.shape[0]}")
-                try:
-                    new_ppt_cate = random.choices(list(all_ppt_cates.index), weights=(all_ppt_cates['ppt_p'].to_numpy()))[0]
-                except ValueError as e:
-                    print(1.00001-all_ppt_cates['ppt_p'].to_numpy())
-                    exit()
+            # while new_ppt_cate in used_ppt_cate:
+            #     print(now_index)
+            #     print(raw_cate_index)
+            #     print(pce_bare)
+            #     print(list(all_ppt_cates.index)[now_index])
+            #     print(list(all_ppt_cates.index)[now_index-1])
+            #     exit("Not suppposed to be used")
+            #     # all_ppt_cates = all_ppt_cates.drop(new_ppt_cate, axis=0)
+            #     # all_ppt_cates['ppt_p'] /= sum(all_ppt_cates['ppt_p'])
+            #     # print(f"New length is {len(all_ppt_cates)}")
+            #     # print(f"The length of cate info is {cate_info.shape[0]}")
+            #     try:
+            #         new_ppt_cate = random.choices(list(all_ppt_cates.index), weights=(all_ppt_cates['ppt_p'].to_numpy()))[0]
+            #     except ValueError as e:
+            #         print(1.00001-all_ppt_cates['ppt_p'].to_numpy())
+            #         exit()
             used_ppt_cate.add(new_ppt_cate)
             new_prediction_rank[new_ppt_cate] = r
 
         else:
             print("Not found in the cecc set!!")
             new_prediction_rank[pce] = r
-    # print(f"The length of the prediction is {len(prediction_rank)}")
     print(f"The number of the unchanged prediction {unchange_count}")
-    # print(f"The lenght of unique is {len(unique_pre_rank)}")
 
     assert len(new_prediction_rank) == len(prediction_rank)
-    # exit()
     return new_prediction_rank
 
 def build_cate_rank_dict(dict_to_sort):
@@ -117,26 +109,9 @@ def subsititute_ppt(prediction_file_path, cecc_path):
             predict_cecc_rank = build_cate_rank_dict(predicted_ceccs) # would return a dict as {cate_name: rank (start with 1)}
             assert max(predict_cecc_rank.values()) == len(predict_cecc_rank)
     
-            # max_mrr_pre, mean_mrr, hit_lable_pre = mrr_calculate(prediction_rank=predict_cecc_rank, gold_ceccs=gold_ceccs)
             sub_cecc_rank = sample_change_ppt(prediction_rank=predict_cecc_rank, cate_info=all_cate_info)
 
-            example_count = 5
             max_mrr, mean_mrr, hit_lable = mrr_calculate(prediction_rank=sub_cecc_rank, gold_ceccs=gold_ceccs)
-            # if hit_lable_pre and hit_lable and 1/max_mrr_pre < 1/max_mrr:
-            #     rank_to_predict = list(predict_cecc_rank.keys())
-            #     prev_high_rank, sub_high_rank = int(1/max_mrr_pre), int(1/max_mrr)
-            #     rank_to_sub = list(sub_cecc_rank.keys())
-            #     print(f"Original highest cecc is {prev_high_rank}")
-            #     for i in rank_to_predict[:prev_high_rank]:
-            #         print(i)
-            #     print(f"Now highest cecc is {sub_high_rank}")
-            #     for i in rank_to_sub[:sub_high_rank]:
-            #         print(i)
-            #     print('============================')
-            #     example_count -= 1
-            #     if example_count < 0:
-            #         exit()
-                # print("The sub is not bad")
             total_mean_mrr.append(mean_mrr)
             total_max_mrr.append(max_mrr)
             if not hit_lable:

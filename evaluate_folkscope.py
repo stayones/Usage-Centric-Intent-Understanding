@@ -18,7 +18,7 @@ import openai
 from gpt_utils import wrap_prompt_chat, wrap_prompt_completion, process_list_from_output
 
 from build_ecc_graphs_fksc import load_source_dict, load_asin2asin
-from evaluate_ecc_graphs_utils import load_gz_jsonl, calc_recrank, load_graphs, kl_divergence， rmse
+from evaluate_ecc_graphs_utils import load_gz_jsonl, calc_recrank, load_graphs, kl_divergence, rmse
 
 openai.api_key = "Your api key"
 CHAT_MODELS = ['gpt-4', 'gpt-4-0314', 'gpt-4-32k', 'gpt-4-32k-0314', 'gpt-3.5-turbo', 'gpt-3.5-turbo-0301']
@@ -934,57 +934,6 @@ def gpt_rank_rt(orig_ceccs: list, prd_veccs: list, rt_prd_ceccs: list, model_nam
     return ret_list, num_toks  # , response
 
 
-def bertlike_rank(gold_eccs, prd_eccs, model, tokenizer, batch_size, device, score_reduction: str, rerank_alpha: float):  
-    gold_eccs_set = list(set(gold_eccs))
-    # print(f"G: {gold_eccs_set}")
-
-    prd_eccs, prd_ecc_scrs = zip(*prd_eccs)
-
-    prd_ecc_scrs = torch.tensor(prd_ecc_scrs, dtype=torch.float32, device=device)
-
-    gold_ecc_reps = []
-    prd_ecc_reps = []
-
-    batch_calc_rep_from_model(gold_eccs_set, gold_ecc_reps, None, model, tokenizer, device, batch_size=batch_size)
-    batch_calc_rep_from_model(list(prd_eccs), prd_ecc_reps, None, model, tokenizer, device, batch_size=batch_size)
-
-
-    gold_ecc_reps = torch.stack(gold_ecc_reps, dim=0)  # shape: (num_ceccs, rep_dim)
-    prd_ecc_reps = torch.stack(prd_ecc_reps, dim=0)  # shape: (num_ceccs, rep_dim)
-    # print(f"X: {gold_ecc_reps}")
-    # print(f"Y: {prd_ecc_reps}")
-    similarity_scores = torch.matmul(gold_ecc_reps, prd_ecc_reps.t())  # shape: (veccs, prd_ceccs)
-    # print(f"Z: {similarity_scores}")
-    if score_reduction == 'sum':
-        similarity_scores = torch.sum(similarity_scores, dim=0, keepdim=False)
-    elif score_reduction == 'max':
-        similarity_scores = torch.max(similarity_scores, dim=0, keepdim=False)
-    elif score_reduction == 'mean':
-        similarity_scores = torch.mean(similarity_scores, dim=0, keepdim=False)
-    else:
-        raise AssertionError
-    # normalize the similarity_scores
-    # print(f'A: {similarity_scores}')
-    similarity_scores = similarity_scores / torch.sum(similarity_scores)
-    # print(f'B: {similarity_scores}')
-    bertscr_dct = dict(zip(prd_eccs, similarity_scores.tolist()))
-    # Geometrically average the similarity scores with the entailment scores
-    similarity_scores = torch.log(similarity_scores) * rerank_alpha + torch.log(prd_ecc_scrs) * (1-rerank_alpha)
-    # print(f'C: {similarity_scores}')
-
-    similarity_ranking = torch.argsort(similarity_scores, dim=0, descending=True).tolist()
-
-    reranked_prd_ceccs = [prd_eccs[i] for i in similarity_ranking]
-
-    # print(f"alpha: {rerank_alpha}")
-    # print(f"reranked preds: {reranked_prd_ceccs}")
-    # print(f"original preds: {prd_eccs}")
-    # print(f"reranked scores: {similarity_scores.tolist()}")
-    # print(f"original scores: {prd_ecc_scrs}")
-
-    return reranked_prd_ceccs, bertscr_dct
-
-
 def lm_reranking_main(predictions_out_path, entscr_key, rerank_n: int, model_type: str, model_name: str, device: str,
                        batch_size: int, score_reduction: str, rerank_alpha: float, do_round_trip: bool,
                        sleep_after_query: float, do_hparam: bool):
@@ -1107,12 +1056,12 @@ def lm_reranking_main(predictions_out_path, entscr_key, rerank_n: int, model_typ
                     total_num_toks += curr_num_toks
                     total_reranked_generations += len(reranked_cands)
                     total_reranked_overlaps += len_overlap
-                elif model_type == 'bertlike':
-                    # raise NotImplementedError
-                    assert model is not None and tokenizer is not None
-                    reranked_cands, bertlike_scrs = bertlike_rank(gold_eccs=gold_veccs, prd_eccs=prd_ceccs_top, model=model, tokenizer=tokenizer, batch_size=batch_size,
-                                    device=device, score_reduction=score_reduction, rerank_alpha=rerank_alpha)
-                    entry['bertlike_scrs'] = bertlike_scrs
+                # elif model_type == 'bertlike':
+                #     # raise NotImplementedError
+                #     assert model is not None and tokenizer is not None
+                #     reranked_cands, bertlike_scrs = bertlike_rank(gold_eccs=gold_veccs, prd_eccs=prd_ceccs_top, model=model, tokenizer=tokenizer, batch_size=batch_size,
+                #                     device=device, score_reduction=score_reduction, rerank_alpha=rerank_alpha)
+                    # entry['bertlike_scrs'] = bertlike_scrs
                 else:
                     raise ValueError(f"Invalid model type: {model_type}")
 
@@ -1160,10 +1109,10 @@ def lm_reranking_main(predictions_out_path, entscr_key, rerank_n: int, model_typ
                                                     model_name=model_name, temperature=0.0, top_p=1.0, sleep_after_query=sleep_after_query)  #, rerank_alpha=rerank_alpha)
                     print(f"Round trip current num tokens: {curr_num_toks}")
                     total_num_toks += curr_num_toks
-                elif model_type == 'bertlike':
-                    rt_reranked_cands, rt_bertlike_scrs = bertlike_rank(gold_eccs=gold_ceccs, prd_eccs=prd_cobuy_ceccs_top, model=model, tokenizer=tokenizer, 
-                                                        batch_size=batch_size, device=device, score_reduction=score_reduction, rerank_alpha=rerank_alpha)
-                    entry['rt_bertlike_scrs'] = rt_bertlike_scrs
+                # elif model_type == 'bertlike':
+                #     rt_reranked_cands, rt_bertlike_scrs = bertlike_rank(gold_eccs=gold_ceccs, prd_eccs=prd_cobuy_ceccs_top, model=model, tokenizer=tokenizer, 
+                #                                         batch_size=batch_size, device=device, score_reduction=score_reduction, rerank_alpha=rerank_alpha)
+                #     entry['rt_bertlike_scrs'] = rt_bertlike_scrs
                 else:
                     raise ValueError(f"Invalid model type: {model_type}")
 
